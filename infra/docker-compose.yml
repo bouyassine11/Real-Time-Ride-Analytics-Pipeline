@@ -132,28 +132,25 @@ services:
       - ride-analytics-net
 
   # --------------------------------------------------------------------------
-  # Phase 3 — Grafana dashboard (reads directly from PostgreSQL)
+  # Phase 3 — Streamlit dashboard (reads directly from PostgreSQL)
   # --------------------------------------------------------------------------
 
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
+  dashboard:
+    build:
+      context: ..
+      dockerfile: dashboard/Dockerfile
+    container_name: ride-dashboard
     depends_on:
       postgres:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "8501:8501"
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_AUTH_ANONYMOUS_ENABLED: "true"
-      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
-      GF_ANALYTICS_REPORTING_ENABLED: "false"
-      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
-    volumes:
-      - ../grafana/provisioning:/etc/grafana/provisioning
-      - ../grafana/dashboards:/var/lib/grafana/dashboards
-      - grafana-storage:/var/lib/grafana
+      PG_HOST:     postgres
+      PG_PORT:     "5432"
+      PG_DATABASE: rideanalytics
+      PG_USER:     spark
+      PG_PASSWORD: spark
     restart: on-failure
     networks:
       - ride-analytics-net
@@ -165,8 +162,6 @@ services:
 
 volumes:
   postgres-data:
-    driver: local
-  grafana-storage:
     driver: local
 
 networks:

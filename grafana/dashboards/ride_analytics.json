@@ -2,11 +2,7 @@
   "annotations": { "list": [] },
   "description": "Real-Time Ride Analytics — KPI Dashboard",
   "editable": true,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 1,
   "id": null,
-  "links": [],
-  "liveNow": true,
   "panels": [
 
     {
@@ -14,28 +10,16 @@
       "title": "Total Rides",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
-      "datasource": { "type": "postgres", "uid": "ride-postgres" },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
-          "unit": "short"
-        }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "ride-postgres" },
-          "rawSql": "SELECT COALESCE(SUM(ride_count), 0) AS \"Total Rides\" FROM rides_per_city;",
-          "format": "table",
-          "refId": "A"
-        }
-      ]
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }, "unit": "short" } },
+      "targets": [{
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+        "rawQuery": true,
+        "rawSql": "SELECT COALESCE(SUM(ride_count), 0) AS \"Total Rides\" FROM rides_per_city",
+        "format": "table",
+        "refId": "A"
+      }]
     },
 
     {
@@ -43,29 +27,16 @@
       "title": "Total Revenue (USD)",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
-      "datasource": { "type": "postgres", "uid": "ride-postgres" },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
-          "unit": "currencyUSD",
-          "decimals": 2
-        }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "ride-postgres" },
-          "rawSql": "SELECT COALESCE(ROUND(SUM(total_revenue_usd)::numeric, 2), 0) AS \"Total Revenue\" FROM fare_metrics;",
-          "format": "table",
-          "refId": "B"
-        }
-      ]
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }, "unit": "currencyUSD", "decimals": 2 } },
+      "targets": [{
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+        "rawQuery": true,
+        "rawSql": "SELECT COALESCE(ROUND(SUM(total_revenue_usd)::numeric, 2), 0) AS \"Total Revenue\" FROM fare_metrics",
+        "format": "table",
+        "refId": "B"
+      }]
     },
 
     {
@@ -73,29 +44,16 @@
       "title": "Avg Fare (USD)",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
-      "datasource": { "type": "postgres", "uid": "ride-postgres" },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] },
-          "unit": "currencyUSD",
-          "decimals": 2
-        }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "ride-postgres" },
-          "rawSql": "SELECT COALESCE(ROUND(AVG(avg_fare_usd)::numeric, 2), 0) AS \"Avg Fare\" FROM fare_metrics;",
-          "format": "table",
-          "refId": "C"
-        }
-      ]
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] }, "unit": "currencyUSD", "decimals": 2 } },
+      "targets": [{
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+        "rawQuery": true,
+        "rawSql": "SELECT COALESCE(ROUND(AVG(avg_fare_usd)::numeric, 2), 0) AS \"Avg Fare\" FROM fare_metrics",
+        "format": "table",
+        "refId": "C"
+      }]
     },
 
     {
@@ -103,36 +61,16 @@
       "title": "Avg Surge Multiplier",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
-      "datasource": { "type": "postgres", "uid": "ride-postgres" },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "orange", "value": 1.5 },
-              { "color": "red", "value": 2.5 }
-            ]
-          },
-          "unit": "short",
-          "decimals": 2
-        }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "ride-postgres" },
-          "rawSql": "SELECT COALESCE(ROUND(AVG(avg_surge)::numeric, 2), 0) AS \"Avg Surge\" FROM fare_metrics;",
-          "format": "table",
-          "refId": "D"
-        }
-      ]
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1.5 }, { "color": "red", "value": 2.5 }] }, "unit": "short", "decimals": 2 } },
+      "targets": [{
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+        "rawQuery": true,
+        "rawSql": "SELECT COALESCE(ROUND(AVG(avg_surge)::numeric, 2), 0) AS \"Avg Surge\" FROM fare_metrics",
+        "format": "table",
+        "refId": "D"
+      }]
     },
 
     {
@@ -140,36 +78,16 @@
       "title": "Avg Cancellation Rate",
       "type": "gauge",
       "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
-      "datasource": { "type": "postgres", "uid": "ride-postgres" },
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "orange", "value": 0.15 },
-              { "color": "red", "value": 0.30 }
-            ]
-          },
-          "unit": "percentunit",
-          "min": 0,
-          "max": 1
-        }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "ride-postgres" },
-          "rawSql": "SELECT COALESCE(ROUND(AVG(cancellation_rate)::numeric, 4), 0) AS \"Cancellation Rate\" FROM cancellation_rate;",
-          "format": "table",
-          "refId": "E"
-        }
-      ]
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 0.15 }, { "color": "red", "value": 0.30 }] }, "unit": "percentunit", "min": 0, "max": 1 } },
+      "targets": [{
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+        "rawQuery": true,
+        "rawSql": "SELECT COALESCE(ROUND(AVG(cancellation_rate)::numeric, 4), 0) AS \"Cancellation Rate\" FROM cancellation_rate",
+        "format": "table",
+        "refId": "E"
+      }]
     },
 
     {
@@ -177,25 +95,16 @@
       "title": "Rides per City — per Minute",
       "type": "timeseries",
       "gridPos": { "h": 9, "w": 12, "x": 0, "y": 4 },
-      "datasource": { "type": "postgres", "uid": "ride-postgres" },
-      "options": {
-        "legend": { "calcs": ["sum"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": { "lineWidth": 2, "fillOpacity": 10 },
-          "unit": "short"
-        }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "ride-postgres" },
-          "rawSql": "SELECT window_start AS \"time\", city, ride_count AS \"rides\" FROM rides_per_city WHERE $__timeFilter(window_start) ORDER BY window_start;",
-          "format": "time_series",
-          "refId": "F"
-        }
-      ]
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+      "options": { "legend": { "calcs": ["sum"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 10 }, "unit": "short" } },
+      "targets": [{
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+        "rawQuery": true,
+        "rawSql": "SELECT window_start AS \"time\", city AS metric, ride_count AS value FROM rides_per_city WHERE $__timeFilter(window_start) ORDER BY window_start",
+        "format": "time_series",
+        "refId": "F"
+      }]
     },
 
     {
@@ -203,25 +112,16 @@
       "title": "Avg Fare by City — per Minute",
       "type": "timeseries",
       "gridPos": { "h": 9, "w": 12, "x": 12, "y": 4 },
-      "datasource": { "type": "postgres", "uid": "ride-postgres" },
-      "options": {
-        "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": { "lineWidth": 2, "fillOpacity": 10 },
-          "unit": "currencyUSD"
-        }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "ride-postgres" },
-          "rawSql": "SELECT window_start AS \"time\", city, avg_fare_usd AS \"avg_fare\" FROM fare_metrics WHERE $__timeFilter(window_start) ORDER BY window_start;",
-          "format": "time_series",
-          "refId": "G"
-        }
-      ]
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+      "options": { "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 10 }, "unit": "currencyUSD" } },
+      "targets": [{
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+        "rawQuery": true,
+        "rawSql": "SELECT window_start AS \"time\", city AS metric, avg_fare_usd AS value FROM fare_metrics WHERE $__timeFilter(window_start) ORDER BY window_start",
+        "format": "time_series",
+        "refId": "G"
+      }]
     },
 
     {
@@ -229,36 +129,16 @@
       "title": "Cancellation Rate by City",
       "type": "bargauge",
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 13 },
-      "datasource": { "type": "postgres", "uid": "ride-postgres" },
-      "options": {
-        "displayMode": "gradient",
-        "orientation": "horizontal",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "orange", "value": 0.15 },
-              { "color": "red", "value": 0.30 }
-            ]
-          },
-          "unit": "percentunit",
-          "min": 0,
-          "max": 1
-        }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "ride-postgres" },
-          "rawSql": "SELECT city, ROUND(AVG(cancellation_rate)::numeric, 4) AS \"rate\" FROM cancellation_rate GROUP BY city ORDER BY city;",
-          "format": "table",
-          "refId": "H"
-        }
-      ]
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+      "options": { "displayMode": "gradient", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 0.15 }, { "color": "red", "value": 0.30 }] }, "unit": "percentunit", "min": 0, "max": 1 } },
+      "targets": [{
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+        "rawQuery": true,
+        "rawSql": "SELECT city, ROUND(AVG(cancellation_rate)::numeric, 4) AS \"Cancellation Rate\" FROM cancellation_rate GROUP BY city ORDER BY city",
+        "format": "table",
+        "refId": "H"
+      }]
     },
 
     {
@@ -266,35 +146,16 @@
       "title": "Avg Surge by City",
       "type": "bargauge",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 13 },
-      "datasource": { "type": "postgres", "uid": "ride-postgres" },
-      "options": {
-        "displayMode": "gradient",
-        "orientation": "horizontal",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "orange", "value": 1.5 },
-              { "color": "red", "value": 2.5 }
-            ]
-          },
-          "unit": "short",
-          "decimals": 2
-        }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "ride-postgres" },
-          "rawSql": "SELECT city, ROUND(AVG(avg_surge)::numeric, 2) AS \"surge\" FROM fare_metrics GROUP BY city ORDER BY city;",
-          "format": "table",
-          "refId": "I"
-        }
-      ]
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+      "options": { "displayMode": "gradient", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1.5 }, { "color": "red", "value": 2.5 }] }, "unit": "short", "decimals": 2 } },
+      "targets": [{
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+        "rawQuery": true,
+        "rawSql": "SELECT city, ROUND(AVG(avg_surge)::numeric, 2) AS \"Avg Surge\" FROM fare_metrics GROUP BY city ORDER BY city",
+        "format": "table",
+        "refId": "I"
+      }]
     },
 
     {
@@ -302,35 +163,28 @@
       "title": "Total Revenue by City",
       "type": "piechart",
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 13 },
-      "datasource": { "type": "postgres", "uid": "ride-postgres" },
-      "options": {
-        "legend": { "displayMode": "table", "placement": "right" },
-        "pieType": "donut",
-        "tooltip": { "mode": "single" }
-      },
-      "fieldConfig": {
-        "defaults": { "unit": "currencyUSD" }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "ride-postgres" },
-          "rawSql": "SELECT city, ROUND(SUM(total_revenue_usd)::numeric, 2) AS \"revenue\" FROM fare_metrics GROUP BY city ORDER BY city;",
-          "format": "table",
-          "refId": "J"
-        }
-      ]
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+      "options": { "legend": { "displayMode": "table", "placement": "right" }, "pieType": "donut", "tooltip": { "mode": "single" } },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" } },
+      "targets": [{
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "ride-postgres" },
+        "rawQuery": true,
+        "rawSql": "SELECT city, ROUND(SUM(total_revenue_usd)::numeric, 2) AS \"Revenue\" FROM fare_metrics GROUP BY city ORDER BY city",
+        "format": "table",
+        "refId": "J"
+      }]
     }
 
   ],
 
   "refresh": "30s",
   "schemaVersion": 38,
-  "tags": ["ride-analytics", "kafka", "spark", "postgresql"],
+  "tags": ["ride-analytics", "spark", "postgresql"],
   "templating": { "list": [] },
   "time": { "from": "now-2h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
   "title": "🚗 Real-Time Ride Analytics",
   "uid": "ride-analytics-v2",
-  "version": 1
+  "version": 2
 }
