@@ -323,3 +323,152 @@ EOF
 - DAG qui démarre le producteur, les jobs Spark, et vérifie les résultats
 - Alertes SLA si un job prend trop longtemps
 - Checks de qualité des données sur les tables Gold
+
+---
+
+---
+
+# Phase 3 — Visualisation Grafana
+
+## C'est quoi Phase 3 ?
+
+On ajoute une couche de visualisation pour afficher les KPIs en temps réel.
+Grafana ne peut pas lire les fichiers Delta directement — une **API FastAPI** fait
+le lien entre les tables Gold et Grafana.
+
+```
+[Delta Gold Tables]
+        │
+        ▼
+[API FastAPI — port 8000]   ← lit les Parquet Delta, retourne du JSON
+        │
+        ▼
+[Grafana — port 3000]       ← interroge l'API toutes les 10 secondes
+        │
+        ▼
+[Dashboard avec 10 panneaux KPI]
+```
+
+---
+
+## Les fichiers
+
+### `api/main.py`
+Service FastAPI avec 6 endpoints :
+
+| Endpoint | Ce qu'il retourne |
+|----------|------------------|
+| `GET /health` | Statut de l'API (pour Docker healthcheck) |
+| `GET /metrics/rides-per-city` | Courses par ville par fenêtre de 1 min |
+| `GET /metrics/fare-metrics` | Tarif moyen, surge, revenus par ville |
+| `GET /metrics/cancellation-rate` | Taux d'annulation par ville |
+| `GET /metrics/summary` | KPIs globaux (total courses, revenus, tarif moyen) |
+| `GET /metrics/rides-timeseries` | Format time series pour Grafana |
+
+Utilise **`deltalake`** (Python pur, sans JVM) pour lire les fichiers Parquet Delta.
+Tous les endpoints acceptent `?city=NAME` et `?limit=N` en paramètres.
+
+### `api/Dockerfile`
+Image Python 3.11 slim. Installe uniquement les packages nécessaires à l'API :
+`fastapi`, `uvicorn`, `pandas`, `pyarrow`, `deltalake`. Pas de Spark ici.
+
+### `grafana/provisioning/datasources/api.yml`
+Configure automatiquement la datasource Grafana au démarrage — pointe vers
+`http://api:8000`. Grafana n'a pas besoin d'être configuré manuellement.
+
+### `grafana/provisioning/dashboards/dashboard.yml`
+Indique à Grafana où trouver les fichiers JSON de dashboards.
+Recharge automatiquement toutes les 30 secondes.
+
+### `grafana/dashboards/ride_analytics.json`
+Dashboard complet avec **10 panneaux** :
+
+**Ligne 1 — KPIs instantanés (stat/gauge)**
+| Panneau | Métrique |
+|---------|---------|
+| Total Rides | Nombre total de courses |
+| Total Revenue | Revenus totaux en USD |
+| Avg Fare | Tarif moyen en USD |
+| Avg Surge | Multiplicateur de surge moyen (vert < 1.5, orange < 2.5, rouge > 2.5) |
+| Cancellation Rate | Taux d'annulation en % (vert < 15%, orange < 30%, rouge > 30%) |
+
+**Ligne 2 — Time series**
+| Panneau | Métrique |
+|---------|---------|
+| Rides per City | Nombre de courses par ville au fil du temps |
+| Avg Fare by City | Tarif moyen par ville au fil du temps |
+
+**Ligne 3 — Comparaison par ville**
+| Panneau | Métrique |
+|---------|---------|
+| Cancellation Rate by City | Barre horizontale par ville |
+| Avg Surge by City | Barre horizontale par ville |
+| Revenue by City | Donut chart — part de revenus par ville |
+
+Le dashboard se **rafraîchit toutes les 10 secondes** et affiche les 30 dernières minutes par défaut.
+
+---
+
+## Nouveaux services Docker
+
+| Service | Image | Port | Rôle |
+|---------|-------|------|------|
+| `api` | Python 3.11 (custom) | 8000 | Lit Delta Gold → JSON |
+| `grafana` | `grafana/grafana:10.4.0` | 3000 | Dashboard KPI |
+
+---
+
+## Comment accéder au dashboard
+
+```bash
+cd infra
+docker compose up --build
+```
+
+Puis ouvrir **http://localhost:3000** dans le navigateur.
+
+- Login : `admin` / `admin`
+- Le dashboard **"🚗 Real-Time Ride Analytics"** s'ouvre automatiquement
+- Attendre ~2 minutes que Spark commence à écrire les tables Gold
+
+### Vérifier l'API directement
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# KPIs globaux
+curl http://localhost:8000/metrics/summary
+
+# Courses par ville (10 dernières fenêtres)
+curl "http://localhost:8000/metrics/rides-per-city?limit=10"
+
+# Filtrer sur une ville
+curl "http://localhost:8000/metrics/fare-metrics?city=New+York"
+```
+
+---
+
+## Architecture complète du pipeline
+
+```
+[Producteur Python]
+        │  événements JSON (10/sec)
+        ▼
+[Kafka: ride_events — 3 partitions]
+        │
+        ▼
+[spark-bronze]  →  Delta Bronze  (brut + métadonnées Kafka)
+        │
+        ▼
+[spark-silver]  →  Delta Silver  (typé, dédupliqué, validé)
+        │
+        ▼
+[spark-gold]    →  Delta Gold    (courses/ville, tarifs, annulations)
+        │
+        ▼
+[API FastAPI]   →  JSON endpoints
+        │
+        ▼
+[Grafana]       →  Dashboard temps réel — http://localhost:3000
+```

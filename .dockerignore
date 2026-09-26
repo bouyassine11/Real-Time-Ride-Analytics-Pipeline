@@ -36,7 +36,10 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Spark / Delta output (Phase 2+)
+# Spark / Delta output (no longer used)
 spark/
 delta/
+lake/
+delta_data/
 dags/
+api/

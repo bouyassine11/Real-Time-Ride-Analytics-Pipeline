@@ -130,7 +130,7 @@ def _delivery_callback(producer: Producer, err, msg) -> None:
 # Core produce helpers
 # ---------------------------------------------------------------------------
 
-def _publish_event(producer: Producer, event: dict[str, Any]) -> None:
+def _publish_event(producer: Producer, event: Any) -> None:
     """
     Serialise one event to JSON and hand it to the producer's internal queue.
 

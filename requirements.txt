@@ -1,36 +1,18 @@
 # ============================================================
-# Real-Time Ride Analytics Pipeline — Dependencies
-# Phase 1: Kafka producer  |  Phase 2: PySpark + Delta Lake
+# Real-Time Ride Analytics Pipeline — Producer Dependencies
 # ============================================================
-# Pin exact versions for reproducibility.
-# Install with:  pip install -r requirements.txt
+# These are ONLY for the producer container.
+# Spark dependencies are managed inside spark/Dockerfile directly.
 # ============================================================
 
-# ------------------------------------
-# Kafka client
-# ------------------------------------
+# Kafka client (Redpanda is Kafka-compatible, same library)
 confluent-kafka==2.11.0
 
-# ------------------------------------
 # Fake data generation
-# ------------------------------------
 Faker==25.8.0
 
-# ------------------------------------
 # Environment variable management
-# ------------------------------------
 python-dotenv==1.0.1
 
-# ------------------------------------
-# Utilities
-# ------------------------------------
+# Terminal output
 rich==13.7.1
-
-# ------------------------------------
-# PySpark + Delta Lake (Phase 2)
-# ------------------------------------
-# PySpark 3.5.x — matches the bitnami/spark Docker image used in compose
-pyspark==3.5.1
-
-# delta-spark must match the Delta Lake version in SPARK_PACKAGES (3.1.0)
-delta-spark==3.1.0

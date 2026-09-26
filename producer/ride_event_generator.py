@@ -36,7 +36,7 @@ import math
 import random
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Dict, List, Optional, Tuple
 
 from faker import Faker
 
@@ -66,7 +66,7 @@ if PRODUCER_RANDOM_SEED is not None:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _random_coords(city: str) -> tuple[float, float]:
+def _random_coords(city: str) -> Tuple[float, float]:
     """Return a (lat, lon) pair uniformly sampled inside a city's bounding box."""
     lat_min, lat_max, lon_min, lon_max = CITY_BOUNDING_BOXES[city]
     lat = random.uniform(lat_min, lat_max)
@@ -105,10 +105,10 @@ def _utc_now_iso() -> str:
 # ---------------------------------------------------------------------------
 
 def generate_ride_event(
-    trip_id: str | None = None,
-    status: str | None = None,
-    city: str | None = None,
-) -> dict[str, Any]:
+    trip_id: Optional[str] = None,
+    status: Optional[str] = None,
+    city: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Generate a single ride-share event dict.
 
@@ -176,7 +176,7 @@ def generate_ride_event(
     }
 
 
-def generate_trip_lifecycle(city: str | None = None) -> list[dict[str, Any]]:
+def generate_trip_lifecycle(city: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Generate the full ordered sequence of events for a single trip:
     requested → accepted → started → completed
