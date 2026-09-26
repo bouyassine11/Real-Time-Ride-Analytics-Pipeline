@@ -1,0 +1,42 @@
+# ============================================================
+# .dockerignore — files excluded from the Docker build context
+# Keeping the build context small speeds up docker build and
+# prevents secrets / local junk from leaking into the image.
+# ============================================================
+
+# Git
+.git
+.gitignore
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+.env
+
+# Local IDE / editor files
+.vscode/
+.idea/
+*.code-workspace
+
+# Documentation (not needed inside the container)
+explaining.md
+*.md
+README*
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Spark / Delta output (Phase 2+)
+spark/
+delta/
+dags/
