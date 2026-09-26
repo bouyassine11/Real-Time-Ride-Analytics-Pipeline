@@ -1,5 +1,6 @@
 # ============================================================
-# Real-Time Ride Analytics Pipeline — Phase 1 Dependencies
+# Real-Time Ride Analytics Pipeline — Dependencies
+# Phase 1: Kafka producer  |  Phase 2: PySpark + Delta Lake
 # ============================================================
 # Pin exact versions for reproducibility.
 # Install with:  pip install -r requirements.txt
@@ -8,24 +9,28 @@
 # ------------------------------------
 # Kafka client
 # ------------------------------------
-# confluent-kafka wraps the high-performance librdkafka C library.
-# Provides Producer, Consumer, AdminClient, and Schema Registry support.
 confluent-kafka==2.11.0
 
 # ------------------------------------
 # Fake data generation
 # ------------------------------------
-# Used by ride_event_generator.py to produce realistic addresses.
 Faker==25.8.0
 
 # ------------------------------------
 # Environment variable management
 # ------------------------------------
-# Loads .env files into os.environ automatically at import time.
 python-dotenv==1.0.1
 
 # ------------------------------------
 # Utilities
 # ------------------------------------
-# Rich terminal output for prettier producer logs (optional but useful).
 rich==13.7.1
+
+# ------------------------------------
+# PySpark + Delta Lake (Phase 2)
+# ------------------------------------
+# PySpark 3.5.x — matches the bitnami/spark Docker image used in compose
+pyspark==3.5.1
+
+# delta-spark must match the Delta Lake version in SPARK_PACKAGES (3.1.0)
+delta-spark==3.1.0

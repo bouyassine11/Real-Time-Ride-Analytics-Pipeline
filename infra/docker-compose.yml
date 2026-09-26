@@ -1,6 +1,40 @@
 version: "3.8"
 
+# ---------------------------------------------------------------------------
+# Shared Spark environment injected into every spark-* service
+# ---------------------------------------------------------------------------
+x-spark-common: &spark-common
+  image: bitnami/spark:3.5.1
+  environment:
+    SPARK_MODE: client
+    PYTHONPATH: /app
+    KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    DELTA_BASE_PATH: /app/delta_data
+    SPARK_TRIGGER_INTERVAL: "10 seconds"
+    SPARK_WINDOW_DURATION: "1 minute"
+    SPARK_WATERMARK_DELAY: "2 minutes"
+    # Download Kafka + Delta connectors at submit time
+    SPARK_SUBMIT_OPTIONS: >-
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,io.delta:delta-spark_2.12:3.1.0
+      --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
+      --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
+  volumes:
+    # Mount the whole project into /app so all modules are importable
+    - ..:/app
+    # Persist Delta Lake data across container restarts
+    - delta-data:/app/delta_data
+  depends_on:
+    kafka:
+      condition: service_healthy
+  networks:
+    - ride-analytics-net
+
+
 services:
+  # --------------------------------------------------------------------------
+  # Infrastructure
+  # --------------------------------------------------------------------------
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
@@ -14,6 +48,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - ride-analytics-net
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -38,6 +74,8 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
+    networks:
+      - ride-analytics-net
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -51,6 +89,8 @@ services:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - ride-analytics-net
 
   kafka-init:
     image: confluentinc/cp-kafka:7.5.0
@@ -67,15 +107,16 @@ services:
       echo 'Topics created:'
       kafka-topics --bootstrap-server kafka:29092 --list
       "
+    networks:
+      - ride-analytics-net
 
-  # ----------------------------------------------------------------
-  # Ride event producer
-  # Built from the Dockerfile at the project root.
-  # Waits for kafka-init to finish so topics exist before producing.
-  # ----------------------------------------------------------------
+  # --------------------------------------------------------------------------
+  # Phase 1 — Ride event producer
+  # --------------------------------------------------------------------------
+
   producer:
     build:
-      context: ..         # project root (where Dockerfile lives)
+      context: ..
       dockerfile: Dockerfile
     container_name: ride-producer
     depends_on:
@@ -84,20 +125,81 @@ services:
       kafka-init:
         condition: service_completed_successfully
     environment:
-      # Inside Docker, "kafka" resolves to the Kafka container via the
-      # shared Docker network — NOT localhost:9092
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       KAFKA_TOPIC_RIDE_EVENTS: ride_events
       KAFKA_TOPIC_DLQ: ride_events_dlq
       PRODUCER_EVENTS_PER_SECOND: "10"
-      PRODUCER_MAX_EVENTS: "0"        # 0 = run forever
+      PRODUCER_MAX_EVENTS: "0"
       LOG_LEVEL: INFO
-    # Override CMD at runtime to run in lifecycle mode:
-    #   docker-compose run producer python producer/kafka_producer.py --lifecycle --trips 10
-    restart: on-failure   # auto-restart if the producer crashes
+      PYTHONPATH: /app
+    restart: on-failure
     networks:
-      - default
+      - ride-analytics-net
+
+  # --------------------------------------------------------------------------
+  # Phase 2 — Spark Structured Streaming jobs
+  # Each job is a separate service so they can be started/stopped independently
+  # --------------------------------------------------------------------------
+
+  spark-bronze:
+    <<: *spark-common
+    container_name: spark-bronze
+    command: >
+      bash -c "pip install delta-spark==3.1.0 --quiet &&
+      spark-submit
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,io.delta:delta-spark_2.12:3.1.0
+      --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
+      --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
+      --conf spark.sql.shuffle.partitions=4
+      /app/spark/bronze_ingestion.py"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    restart: on-failure
+
+  spark-silver:
+    <<: *spark-common
+    container_name: spark-silver
+    command: >
+      bash -c "pip install delta-spark==3.1.0 --quiet &&
+      spark-submit
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,io.delta:delta-spark_2.12:3.1.0
+      --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
+      --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
+      --conf spark.sql.shuffle.partitions=4
+      /app/spark/silver_transform.py"
+    depends_on:
+      spark-bronze:
+        condition: service_started
+    restart: on-failure
+
+  spark-gold:
+    <<: *spark-common
+    container_name: spark-gold
+    command: >
+      bash -c "pip install delta-spark==3.1.0 --quiet &&
+      spark-submit
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,io.delta:delta-spark_2.12:3.1.0
+      --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
+      --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
+      --conf spark.sql.shuffle.partitions=4
+      /app/spark/gold_aggregations.py"
+    depends_on:
+      spark-silver:
+        condition: service_started
+    restart: on-failure
+
+
+# ---------------------------------------------------------------------------
+# Volumes & Networks
+# ---------------------------------------------------------------------------
+
+volumes:
+  delta-data:
+    driver: local
 
 networks:
-  default:
+  ride-analytics-net:
     name: ride-analytics-net

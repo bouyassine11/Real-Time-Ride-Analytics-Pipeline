@@ -161,3 +161,165 @@ PySpark va lire les événements depuis Kafka et les écrire dans Delta Lake :
 - **Bronze** — données brutes telles quelles
 - **Silver** — nettoyées et dédupliquées
 - **Gold** — métriques agrégées (courses par ville, tarif moyen, taux d'annulation…)
+
+---
+
+---
+
+# Phase 2 — PySpark Structured Streaming + Delta Lake
+
+## C'est quoi Phase 2 ?
+
+On consomme les événements de Kafka avec **PySpark Structured Streaming** et on
+les transforme en trois couches Delta Lake : Bronze (brut), Silver (propre),
+Gold (agrégé). C'est l'architecture **Medallion**, standard dans les pipelines
+de données modernes.
+
+---
+
+## Architecture complète
+
+```
+[Kafka: ride_events]
+        │
+        ▼
+[spark-bronze]  →  Delta Bronze  (JSON brut + métadonnées Kafka)
+        │
+        ▼
+[spark-silver]  →  Delta Silver  (typé, dédupliqué, validé)
+        │
+        ▼
+[spark-gold]    →  Delta Gold/rides_per_city    (nb courses/ville/minute)
+                →  Delta Gold/fare_metrics      (tarif moyen, revenus)
+                →  Delta Gold/cancellation      (taux d'annulation)
+```
+
+---
+
+## Les fichiers
+
+### `delta/schemas.py`
+Définit les schémas PySpark (`StructType`) pour chaque couche.
+Tous les jobs Spark importent depuis ici — un seul endroit à modifier si le
+schéma évolue.
+
+| Schéma | Utilisé par |
+|--------|------------|
+| `BRONZE_SCHEMA` | bronze_ingestion.py |
+| `SILVER_SCHEMA` | silver_transform.py |
+| `GOLD_RIDES_PER_CITY_SCHEMA` | gold_aggregations.py |
+| `GOLD_FARE_METRICS_SCHEMA` | gold_aggregations.py |
+| `GOLD_CANCELLATION_SCHEMA` | gold_aggregations.py |
+
+### `spark/bronze_ingestion.py`
+**Kafka → Delta Bronze**
+
+- Lit les messages bruts depuis Kafka (`value` = JSON en bytes)
+- Convertit en string UTF-8 sans toucher au contenu
+- Ajoute les métadonnées : `kafka_partition`, `kafka_offset`, `kafka_timestamp`, `ingestion_timestamp`
+- Écrit en mode **append** dans Delta Bronze toutes les 10 secondes
+- Sauvegarde sa progression via un **checkpoint** → peut reprendre sans relire Kafka depuis le début
+
+### `spark/silver_transform.py`
+**Delta Bronze → Delta Silver**
+
+- Lit la table Bronze en streaming
+- Parse le JSON avec `from_json()` en colonnes typées
+- **Filtre** les enregistrements invalides (event_id null, status invalide, timestamp manquant)
+- **Déduplique** par `event_id` via un **Delta MERGE** (upsert) : si l'event existe déjà → ignoré, sinon → inséré
+- Garantit qu'aucun événement n'apparaît deux fois même si le producteur a retenté
+
+### `spark/gold_aggregations.py`
+**Delta Silver → 3 tables Gold**
+
+Utilise des **fenêtres glissantes de 1 minute** sur `event_timestamp` (heure réelle de l'événement, pas de traitement).
+
+| Table Gold | Ce qu'elle contient |
+|-----------|---------------------|
+| `rides_per_city` | Nombre de courses par ville par minute |
+| `fare_metrics` | Tarif moyen, surge moyen, revenus totaux (courses terminées uniquement) |
+| `cancellation` | Nombre d'annulations et taux d'annulation par ville par minute |
+
+**Watermark de 2 minutes** : Spark attend jusqu'à 2 minutes les événements en retard
+avant de fermer une fenêtre. Au-delà → ignorés.
+
+---
+
+## Nouveaux services Docker
+
+| Service | Image | Rôle |
+|---------|-------|------|
+| `spark-bronze` | `bitnami/spark:3.5.1` | Job Bronze en continu |
+| `spark-silver` | `bitnami/spark:3.5.1` | Job Silver en continu |
+| `spark-gold` | `bitnami/spark:3.5.1` | Job Gold en continu |
+
+Les données Delta sont persistées dans un **volume Docker** (`delta-data`) —
+elles survivent aux redémarrages des conteneurs.
+
+---
+
+## Comment lancer Phase 1 + Phase 2
+
+```bash
+cd infra
+docker compose up --build
+```
+
+Tous les services démarrent dans le bon ordre :
+`zookeeper → kafka → kafka-init → producer → spark-bronze → spark-silver → spark-gold`
+
+### Voir les logs de chaque job Spark
+
+```bash
+docker compose logs -f spark-bronze
+docker compose logs -f spark-silver
+docker compose logs -f spark-gold
+```
+
+### Démarrer uniquement l'infrastructure + le producteur (sans Spark)
+
+```bash
+docker compose up zookeeper kafka kafka-ui kafka-init producer
+```
+
+### Démarrer Spark séparément
+
+```bash
+docker compose up spark-bronze spark-silver spark-gold
+```
+
+---
+
+## Comment vérifier que Phase 2 fonctionne
+
+**1. Logs des jobs Spark** — pas d'erreur `WARN` ou `ERROR` répétée
+
+**2. Fichiers Delta créés** — inspecter le volume depuis un conteneur :
+```bash
+docker compose run spark-bronze ls /app/delta_data/
+# Doit afficher : bronze/  silver/  gold/  checkpoints/
+```
+
+**3. Lire les données Gold directement** :
+```bash
+docker compose run spark-bronze bash -c "
+pip install delta-spark==3.1.0 --quiet &&
+spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,io.delta:delta-spark_2.12:3.1.0 \
+  --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension \
+  --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog \
+  - << 'EOF'
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.appName('check').getOrCreate()
+spark.read.format('delta').load('/app/delta_data/gold/rides_per_city').show(10)
+EOF
+"
+```
+
+---
+
+## Prochaine étape — Phase 3
+
+**Apache Airflow** va orchestrer l'ensemble du pipeline :
+- DAG qui démarre le producteur, les jobs Spark, et vérifie les résultats
+- Alertes SLA si un job prend trop longtemps
+- Checks de qualité des données sur les tables Gold

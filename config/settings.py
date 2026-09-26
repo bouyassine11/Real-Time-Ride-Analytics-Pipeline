@@ -78,6 +78,43 @@ SURGE_MAX: float = float(os.getenv("SURGE_MAX", "3.5"))
 
 
 # ---------------------------------------------------------------------------
+# Spark
+# ---------------------------------------------------------------------------
+
+SPARK_APP_NAME: str = os.getenv("SPARK_APP_NAME", "ride-analytics")
+
+# How often each streaming micro-batch runs
+SPARK_TRIGGER_INTERVAL: str = os.getenv("SPARK_TRIGGER_INTERVAL", "10 seconds")
+
+# Tumbling window size for Gold aggregations
+SPARK_WINDOW_DURATION: str = os.getenv("SPARK_WINDOW_DURATION", "1 minute")
+
+# How long to wait for late-arriving events before closing a window
+SPARK_WATERMARK_DELAY: str = os.getenv("SPARK_WATERMARK_DELAY", "2 minutes")
+
+# Maven coordinates for Spark packages (downloaded at spark-submit time)
+# Versions must align with the Spark version used in the Docker image (3.5.x)
+SPARK_PACKAGES: str = ",".join([
+    "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1",   # Kafka connector
+    "io.delta:delta-spark_2.12:3.1.0",                     # Delta Lake
+])
+
+
+# ---------------------------------------------------------------------------
+# Delta Lake paths (inside the Spark container at /app/delta_data/)
+# ---------------------------------------------------------------------------
+
+_DELTA_BASE: str = os.getenv("DELTA_BASE_PATH", "/app/delta_data")
+
+DELTA_BRONZE_PATH: str            = f"{_DELTA_BASE}/bronze"
+DELTA_SILVER_PATH: str            = f"{_DELTA_BASE}/silver"
+DELTA_GOLD_RIDES_PATH: str        = f"{_DELTA_BASE}/gold/rides_per_city"
+DELTA_GOLD_FARE_PATH: str         = f"{_DELTA_BASE}/gold/fare_metrics"
+DELTA_GOLD_CANCELLATION_PATH: str = f"{_DELTA_BASE}/gold/cancellation"
+DELTA_CHECKPOINT_PATH: str        = f"{_DELTA_BASE}/checkpoints"
+
+
+# ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
 
